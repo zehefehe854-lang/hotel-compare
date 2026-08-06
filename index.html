@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="购物比价">
 <meta name="theme-color" content="#0f172a">
-<link rel="manifest" href="manifest.json?v=10">
+<link rel="manifest" href="manifest.json?v=11">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=10">
 <link rel="apple-touch-icon" href="icon-192.png?v=10">
 <meta name="mobile-web-app-capable" content="yes">
@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v10 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v11 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -334,6 +334,16 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 
 <script>
 // ============================================================
+// 版本自检 — 防止浏览器缓存旧版
+// ============================================================
+const EXPECTED_VERSION = 11;
+const loadedVersion = parseInt((document.getElementById('timestamp')?.textContent?.match(/v(\d+)/) || [])[1]) || 0;
+if (loadedVersion && loadedVersion < EXPECTED_VERSION) {
+  // Old version cached — force reload with cache-busting
+  location.href = location.origin + location.pathname + '?v=' + EXPECTED_VERSION + '&t=' + Date.now();
+}
+
+// ============================================================
 // 数据 + 模式
 // ============================================================
 let mode = localStorage.getItem('hl_mode') || 'hotel';
@@ -346,32 +356,32 @@ let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
-  { id:'tujia', name:'途家民宿', emoji:'🏡', pkg:'com.tujia.app',
+  { id:'tujia', name:'途家民宿', emoji:'🏡', scheme:'tujia',
     url:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'meituan', name:'美团民宿', emoji:'🟡', pkg:'com.sankuai.meituan',
+  { id:'meituan', name:'美团民宿', emoji:'🟡', scheme:'imeituan',
     url:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'qunar', name:'去哪儿', emoji:'🐫', pkg:'com.Qunar',
+  { id:'qunar', name:'去哪儿', emoji:'🐫', scheme:'qunar',
     url:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'zhixing', name:'智行', emoji:'🚅', pkg:'ctrip.android.view',
+  { id:'zhixing', name:'智行', emoji:'🚅', scheme:'ctrip',
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'tongcheng', name:'同程旅行', emoji:'✈️', pkg:null,
+  { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:null,
     url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', pkg:'com.taobao.trip',
+  { id:'fliggy', name:'飞猪', emoji:'🐷', scheme:'fliggy',
     url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
 const PDD_PFMS = [
-  { id:'pdd', name:'拼多多', emoji:'📦', pkg:'com.xunmeng.pinduoduo',
+  { id:'pdd', name:'拼多多', emoji:'📦', scheme:'pinduoduo',
     url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}` },
-  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥', pkg:'com.xunmeng.pinduoduo',
+  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥', scheme:'pinduoduo',
     url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2` },
-  { id:'taobao', name:'淘宝', emoji:'🛍', pkg:'com.taobao.taobao',
+  { id:'taobao', name:'淘宝', emoji:'🛍', scheme:'taobao',
     url:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
-  { id:'jd', name:'京东', emoji:'🐕', pkg:'com.jingdong.app.mall',
+  { id:'jd', name:'京东', emoji:'🐕', scheme:'openapp.jdmobile',
     url:(d) => `https://search.jd.com/Search?keyword=${d}` },
-  { id:'smzdm', name:'什么值得买', emoji:'💎', pkg:null,
+  { id:'smzdm', name:'什么值得买', emoji:'💎', scheme:null,
     url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
-  { id:'douyin', name:'抖音商城', emoji:'🎵', pkg:'com.ss.android.ugc.aweme',
+  { id:'douyin', name:'抖音商城', emoji:'🎵', scheme:'snssdk1128',
     url:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
 ];
 
@@ -418,7 +428,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v10 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v11 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -506,20 +516,20 @@ function openPfm(id) {
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
 
-  // Android: use intent:// URL to open native app, with web fallback
+  // Android: try opening native app via URL scheme, with web fallback
   const isAndroid = /android/i.test(navigator.userAgent);
-  if (isAndroid && p.pkg) {
-    const u = new URL(webUrl);
-    const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${p.pkg};S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
-    // Use <a> element click for reliable user-gesture intent handling
-    const a = document.createElement('a');
-    a.href = intentUrl;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => document.body.removeChild(a), 100);
+  if (isAndroid && p.scheme) {
+    // Generate scheme URL: schemename:// (just the bare scheme to maximize chance of opening)
+    const schemeUrl = p.scheme + '://';
+    // Fallback timer: if app doesn't open within 2s, go to website
+    let fallbackTimer = setTimeout(() => { window.location.href = webUrl; }, 2000);
+    // If page loses focus/visibility, app opened — cancel the fallback
+    const onHide = () => { clearTimeout(fallbackTimer); };
+    document.addEventListener('visibilitychange', onHide, { once: true });
+    window.addEventListener('blur', onHide, { once: true });
+    window.location.href = schemeUrl;
   } else {
-    // iOS / desktop / no package: just open web URL
+    // iOS / desktop / no scheme: just open web URL
     const win = window.open(webUrl, '_blank');
     if (!win) { window.location.href = webUrl; }
   }
