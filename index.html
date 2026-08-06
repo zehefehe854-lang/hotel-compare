@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v21 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v22 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -440,7 +440,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v21 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v22 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -465,7 +465,7 @@ function updateModeUI() {
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
   document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
   document.getElementById('timestamp').textContent =
-    'v21 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v22 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   renderDepthFields();
 }
@@ -525,16 +525,48 @@ function openPfm(id) {
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
-  // Open web URL — platforms show "Open in App" banner for native switch
-  // Note: MIUI blocks scheme URLs from Chrome JS; web URL is the reliable path
-  window.open(webUrl, '_blank');
+  // Detect browser: Xiaomi system browser allows scheme URL deep linking, Chrome doesn't
+  const ua = navigator.userAgent || '';
+  const isXiaomiBrowser = /MiuiBrowser|XiaoMi/i.test(ua) || /com\.android\.browser/i.test(ua);
+  const isChrome = /Chrome/i.test(ua) && !/MiuiBrowser|XiaoMi/i.test(ua);
+
+  // Try scheme URL first on browsers that support it (Xiaomi system browser)
+  if (p.scheme && (isXiaomiBrowser || !isChrome)) {
+    const schemeUrl = p.scheme + '://';
+    const fallbackTimer = setTimeout(function() {
+      // App didn't open — fall back to web URL
+      window.open(webUrl, '_blank');
+    }, 2500);
+
+    // Detect if app opened (page loses focus)
+    var blurred = false;
+    window.addEventListener('blur', function() {
+      blurred = true;
+      clearTimeout(fallbackTimer);
+    }, { once: true });
+
+    // Try opening app
+    location.href = schemeUrl;
+
+    // If page stays focused after 2.5s, app wasn't installed/opened
+    setTimeout(function() {
+      if (!blurred) {
+        clearTimeout(fallbackTimer);
+        window.open(webUrl, '_blank');
+      }
+    }, 2500);
+  } else {
+    // Chrome or unknown browser: use web URL (platforms show "Open in App" banner)
+    window.open(webUrl, '_blank');
+  }
 
   // Bookkeeping
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   const lateTag = lateNight ? ' 🌙凌晨' : '';
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
-  toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
+  var appHint = (p.scheme && (isXiaomiBrowser || !isChrome)) ? ' 📱' : '';
+  toast(`🔍 打开${p.name}${appHint} · "${d}"${dateHint}`);
 }
 
 function nightsCount() {
