@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v19 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v20 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -440,7 +440,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v19 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v20 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -517,30 +517,16 @@ function openPfm(id) {
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
 
-  // Build web URL
+  // Build web URL with search parameters
   const webUrl = mode === 'hotel'
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
-  // CRITICAL: navigate scheme URL FIRST within user gesture, before any async calls
-  const isAndroid = /android/i.test(navigator.userAgent);
-  if (isAndroid && p.scheme) {
-    const schemeUrl = p.scheme + '://';
-    // Use <a> element click for most reliable user-gesture propagation
-    const a = document.createElement('a');
-    a.href = schemeUrl;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); }, 100);
-    // Fall back to web URL after delay — if app opened, this runs in background
-    setTimeout(() => { window.location.href = webUrl; }, 2500);
-  } else {
-    // iOS / desktop / no scheme: just open web URL
-    window.open(webUrl, '_blank');
-  }
+  // Open web URL — platforms show "Open in App" banner for native switch
+  // Note: MIUI blocks scheme URLs from Chrome JS; web URL is the reliable path
+  window.open(webUrl, '_blank');
 
-  // Bookkeeping after navigation triggered
+  // Bookkeeping
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   const lateTag = lateNight ? ' 🌙凌晨' : '';
