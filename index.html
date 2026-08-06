@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v23 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v24 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -370,12 +370,12 @@ const HOTEL_PFMS = [
     url:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'qunar', name:'去哪儿', emoji:'🐫', scheme:'qunar',
     url:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'zhixing', name:'智行', emoji:'🚅', scheme:'ctrip',
+  { id:'zhixing', name:'智行', emoji:'🚅', scheme:null,
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:null,
+  { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:'tongcheng',
     url:(d,ci,co) => `https://m.ly.com/hotel/search?cityname=${d}&checkin=${ci}&checkout=${co}` },
   { id:'fliggy', name:'飞猪旅行', emoji:'🐷', scheme:null,
-    url:(d,ci,co) => `https://m.fliggy.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
+    url:(d,ci,co) => `https://market.fliggy.com/hotel/simpleSearch.htm?city=${d}&checkIn=${ci}&checkOut=${co}` },
 ];
 
 const PDD_PFMS = [
@@ -385,8 +385,6 @@ const PDD_PFMS = [
     url:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
   { id:'jd', name:'京东', emoji:'🐕', scheme:'openapp.jdmobile',
     url:(d) => `https://m.jd.com/search?keyword=${d}` },
-  { id:'smzdm', name:'什么值得买', emoji:'💎', scheme:null,
-    url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
   { id:'douyin', name:'抖音商城', emoji:'🎵', scheme:'snssdk1128',
     url:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
 ];
@@ -438,7 +436,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v23 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v24 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -463,7 +461,7 @@ function updateModeUI() {
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
   document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
   document.getElementById('timestamp').textContent =
-    'v23 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v24 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   renderDepthFields();
 }
@@ -518,45 +516,53 @@ function openPfm(id) {
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
 
-  // Build web URL with search parameters
   const webUrl = mode === 'hotel'
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
-  // Detect browser capabilities
   var ua = navigator.userAgent || '';
   var isXiaomi = /MiuiBrowser|XiaoMi/i.test(ua);
   var isChrome = /Chrome/i.test(ua) && !isXiaomi;
 
-  // Bookkeeping (do early so UI updates immediately)
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   var lateTag = lateNight ? ' 🌙凌晨' : '';
   var dateHint = mode === 'hotel' ? ' · ' + ci + '→' + co + ' ' + nightsCount() + '晚' + lateTag : '';
 
-  // Strategy: scheme URL for Xiaomi browser, web URL for Chrome
   if (p.scheme && (isXiaomi || !isChrome)) {
-    // Try opening native app via scheme URL
     var schemeUrl = p.scheme + '://';
     var appOpened = false;
 
     var onBlur = function() { appOpened = true; };
     window.addEventListener('blur', onBlur, { once: true });
 
-    // Method 1: location.href
-    location.href = schemeUrl;
+    // KEY FIX: use window.open(_blank) instead of location.href
+    // location.href replaces the PWA page → returning from app = dead tab
+    // window.open creates a new tab that gets intercepted by Android intent system
+    // → PWA page stays alive, user can return to it after app
+    var w = window.open(schemeUrl, '_blank');
 
-    // Fallback: if app doesn't open after 2s, use web URL
+    if (!w) {
+      // Popup blocked → fall back to web URL
+      window.removeEventListener('blur', onBlur);
+      window.open(webUrl, '_blank');
+      toast('🔍 ' + p.name + ' (弹窗被拦截) · "' + d + '"' + dateHint);
+      return;
+    }
+
     setTimeout(function() {
       window.removeEventListener('blur', onBlur);
       if (!appOpened) {
+        try { w.close(); } catch(e) {}
         window.open(webUrl, '_blank');
+        toast('🔍 ' + p.name + ' (未检测到App) · "' + d + '"' + dateHint);
+      } else {
+        toast('📱 ' + p.name + ' App已打开 · "' + d + '"' + dateHint);
       }
-    }, 2000);
+    }, 3000);
 
-    toast('📱 打开' + p.name + 'App · "' + d + '"' + dateHint);
+    toast('📱 请求打开' + p.name + ' · "' + d + '"' + dateHint);
   } else {
-    // Chrome or scheme not available: use web URL (platform shows "Open in App" banner)
     window.open(webUrl, '_blank');
     toast('🔍 打开' + p.name + ' · "' + d + '"' + dateHint);
   }

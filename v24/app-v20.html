@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="购物比价">
 <meta name="theme-color" content="#0f172a">
-<link rel="manifest" href="manifest.json?v=12">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=12">
-<link rel="apple-touch-icon" href="icon-192.png?v=12">
+<link rel="manifest" href="manifest.json?v=16">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=16">
+<link rel="apple-touch-icon" href="icon-192.png?v=16">
 <meta name="mobile-web-app-capable" content="yes">
 <title>购物比价 · AI 深度分析</title>
 <style>
@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v12 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v23 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -334,14 +334,22 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 
 <script>
 // ============================================================
-// 版本自检 — 防止浏览器缓存旧版
+// 版本自检 — 从远程 version.json 获取最新版本号，绕过 CDN 缓存
 // ============================================================
-const EXPECTED_VERSION = 12;
-const loadedVersion = parseInt((document.getElementById('timestamp')?.textContent?.match(/v(\d+)/) || [])[1]) || 0;
-if (loadedVersion && loadedVersion < EXPECTED_VERSION) {
-  // Old version cached — force reload with cache-busting
-  location.href = location.origin + location.pathname + '?v=' + EXPECTED_VERSION + '&t=' + Date.now();
-}
+(function checkVersion() {
+  const loadedVersion = parseInt((document.getElementById('timestamp')?.textContent?.match(/v(\d+)/) || [])[1]) || 0;
+  if (!loadedVersion) return;
+  // Fetch version.json with cache-busting timestamp to bypass CDN cache
+  fetch('version.json?t=' + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      if (data.version && loadedVersion < data.version) {
+        // Old version cached — force reload with cache-busting
+        location.href = location.origin + location.pathname + '?v=' + data.version + '&t=' + Date.now();
+      }
+    })
+    .catch(() => { /* ignore network errors */ });
+})();
 
 // ============================================================
 // 数据 + 模式
@@ -365,20 +373,18 @@ const HOTEL_PFMS = [
   { id:'zhixing', name:'智行', emoji:'🚅', scheme:'ctrip',
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:null,
-    url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', scheme:'fliggy',
-    url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
+    url:(d,ci,co) => `https://m.ly.com/hotel/search?cityname=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'fliggy', name:'飞猪旅行', emoji:'🐷', scheme:null,
+    url:(d,ci,co) => `https://m.fliggy.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
 const PDD_PFMS = [
   { id:'pdd', name:'拼多多', emoji:'📦', scheme:'pinduoduo',
     url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}` },
-  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥', scheme:'pinduoduo',
-    url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2` },
   { id:'taobao', name:'淘宝', emoji:'🛍', scheme:'taobao',
     url:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
   { id:'jd', name:'京东', emoji:'🐕', scheme:'openapp.jdmobile',
-    url:(d) => `https://search.jd.com/Search?keyword=${d}` },
+    url:(d) => `https://m.jd.com/search?keyword=${d}` },
   { id:'smzdm', name:'什么值得买', emoji:'💎', scheme:null,
     url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
   { id:'douyin', name:'抖音商城', emoji:'🎵', scheme:'snssdk1128',
@@ -419,16 +425,20 @@ function init() {
   document.getElementById('checkoutDate').value = checkout;
   document.getElementById('lateNight').checked = lateNight;
   updateLateNightUI();
-  // 内置 API Key（双栈排名自动使用）
+  // API Key：首次使用弹出输入框，之后保存在 localStorage
+  // 注意：Key 仅存储在你的手机浏览器中，不会上传到任何服务器（除了直接调用 Anthropic API）
   if (!localStorage.getItem('hl_api_key')) {
-    localStorage.setItem('hl_api_key', 'sk-1f030cc4eb1d4aa79ebf93158333f180');
+    const key = prompt('🔑 请输入 Anthropic API Key（用于 AI 深度分析）：\n\nKey 仅保存在本机，不会上传到任何第三方。\n之后可在排名结果区底部修改。\n\n（跳过则不启用 AI 分析）', '');
+    if (key && key.trim()) {
+      localStorage.setItem('hl_api_key', key.trim());
+    }
   }
   updateModeUI();
   renderPlatforms();
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v12 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v23 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -452,6 +462,9 @@ function updateModeUI() {
   document.getElementById('modePDD').classList.toggle('active', mode === 'pdd');
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
   document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
+  document.getElementById('timestamp').textContent =
+    'v23 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    '  |  ' + new Date().toLocaleDateString('zh-CN');
   renderDepthFields();
 }
 
@@ -505,34 +518,47 @@ function openPfm(id) {
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
 
-  // Build web URL
+  // Build web URL with search parameters
   const webUrl = mode === 'hotel'
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
+  // Detect browser capabilities
+  var ua = navigator.userAgent || '';
+  var isXiaomi = /MiuiBrowser|XiaoMi/i.test(ua);
+  var isChrome = /Chrome/i.test(ua) && !isXiaomi;
+
+  // Bookkeeping (do early so UI updates immediately)
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
-  const lateTag = lateNight ? ' 🌙凌晨' : '';
-  const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
-  toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
+  var lateTag = lateNight ? ' 🌙凌晨' : '';
+  var dateHint = mode === 'hotel' ? ' · ' + ci + '→' + co + ' ' + nightsCount() + '晚' + lateTag : '';
 
-  // Android: use intent:// URL to open native app, with web fallback
-  const isAndroid = /android/i.test(navigator.userAgent);
-  if (isAndroid && p.scheme) {
-    const u = new URL(webUrl);
-    // intent URL with app scheme, falls back to web if app not installed
-    const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${p.scheme};S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
-    // Use <a> element click — most reliable on Android Chrome
-    const a = document.createElement('a');
-    a.href = intentUrl;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); }, 200);
+  // Strategy: scheme URL for Xiaomi browser, web URL for Chrome
+  if (p.scheme && (isXiaomi || !isChrome)) {
+    // Try opening native app via scheme URL
+    var schemeUrl = p.scheme + '://';
+    var appOpened = false;
+
+    var onBlur = function() { appOpened = true; };
+    window.addEventListener('blur', onBlur, { once: true });
+
+    // Method 1: location.href
+    location.href = schemeUrl;
+
+    // Fallback: if app doesn't open after 2s, use web URL
+    setTimeout(function() {
+      window.removeEventListener('blur', onBlur);
+      if (!appOpened) {
+        window.open(webUrl, '_blank');
+      }
+    }, 2000);
+
+    toast('📱 打开' + p.name + 'App · "' + d + '"' + dateHint);
   } else {
-    // iOS / desktop / no scheme: just open web URL
-    const win = window.open(webUrl, '_blank');
-    if (!win) { window.location.href = webUrl; }
+    // Chrome or scheme not available: use web URL (platform shows "Open in App" banner)
+    window.open(webUrl, '_blank');
+    toast('🔍 打开' + p.name + ' · "' + d + '"' + dateHint);
   }
 }
 
@@ -858,31 +884,8 @@ function buildAIPrompt() {
   return prompt;
 }
 
-function copyAIPrompt() {
-  const prompt = buildAIPrompt();
-  if (!prompt) { toast('请先添加商品/房源', true); return; }
-  copyText(prompt);
-  toast('✅ 分析请求已复制！接下来点"打开 Claude"');
-}
-
-function openClaude() {
-  window.open('https://claude.ai', '_blank');
-  toast('🚀 在 Claude 输入框长按粘贴');
-}
-
-function importAIResult() {
-  const result = prompt('请粘贴 Claude 的分析结果：');
-  if (!result) return;
-  aiResult = `<div class="card" style="white-space:pre-wrap;font-size:13px;line-height:1.5">${result.replace(/\n/g, '<br>')}</div>`;
-  localStorage.setItem('hl_ai_result', aiResult);
-  document.getElementById('results').classList.add('show');
-  document.getElementById('rankedList').innerHTML = aiResult;
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-  toast('✅ AI分析结果已保存');
-}
-
 // ============================================================
-// 🤖 Claude API 直接调用（内置 Key，排名时自动触发）
+// 🤖 Claude API 直接调用（排名时自动触发，双栈执行）
 // ============================================================
 async function runAIAnalysis(scored, apiKey) {
   const prompt = buildAIPrompt();
