@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="购物比价">
 <meta name="theme-color" content="#0f172a">
-<link rel="manifest" href="manifest.json?v=15">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=15">
-<link rel="apple-touch-icon" href="icon-192.png?v=15">
+<link rel="manifest" href="manifest.json?v=16">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=16">
+<link rel="apple-touch-icon" href="icon-192.png?v=16">
 <meta name="mobile-web-app-capable" content="yes">
 <title>购物比价 · AI 深度分析</title>
 <style>
@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v15 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v17 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -336,7 +336,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 // ============================================================
 // 版本自检 — 防止浏览器缓存旧版
 // ============================================================
-const EXPECTED_VERSION = 15;
+const EXPECTED_VERSION = 17;
 const loadedVersion = parseInt((document.getElementById('timestamp')?.textContent?.match(/v(\d+)/) || [])[1]) || 0;
 if (loadedVersion && loadedVersion < EXPECTED_VERSION) {
   // Old version cached — force reload with cache-busting
@@ -366,7 +366,7 @@ const HOTEL_PFMS = [
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:null,
     url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', scheme:'fliggy',
+  { id:'fliggy', name:'飞猪', emoji:'🐷', scheme:null,  // fliggy:// scheme tested non-functional via ADB
     url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
@@ -419,16 +419,20 @@ function init() {
   document.getElementById('checkoutDate').value = checkout;
   document.getElementById('lateNight').checked = lateNight;
   updateLateNightUI();
-  // 内置 API Key（双栈排名自动使用）
+  // API Key：首次使用弹出输入框，之后保存在 localStorage
+  // 注意：Key 仅存储在你的手机浏览器中，不会上传到任何服务器（除了直接调用 Anthropic API）
   if (!localStorage.getItem('hl_api_key')) {
-    localStorage.setItem('hl_api_key', 'sk-1f030cc4eb1d4aa79ebf93158333f180');
+    const key = prompt('🔑 请输入 Anthropic API Key（用于 AI 深度分析）：\n\nKey 仅保存在本机，不会上传到任何第三方。\n之后可在排名结果区底部修改。\n\n（跳过则不启用 AI 分析）', '');
+    if (key && key.trim()) {
+      localStorage.setItem('hl_api_key', key.trim());
+    }
   }
   updateModeUI();
   renderPlatforms();
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v15 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v17 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -854,31 +858,8 @@ function buildAIPrompt() {
   return prompt;
 }
 
-function copyAIPrompt() {
-  const prompt = buildAIPrompt();
-  if (!prompt) { toast('请先添加商品/房源', true); return; }
-  copyText(prompt);
-  toast('✅ 分析请求已复制！接下来点"打开 Claude"');
-}
-
-function openClaude() {
-  window.open('https://claude.ai', '_blank');
-  toast('🚀 在 Claude 输入框长按粘贴');
-}
-
-function importAIResult() {
-  const result = prompt('请粘贴 Claude 的分析结果：');
-  if (!result) return;
-  aiResult = `<div class="card" style="white-space:pre-wrap;font-size:13px;line-height:1.5">${result.replace(/\n/g, '<br>')}</div>`;
-  localStorage.setItem('hl_ai_result', aiResult);
-  document.getElementById('results').classList.add('show');
-  document.getElementById('rankedList').innerHTML = aiResult;
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-  toast('✅ AI分析结果已保存');
-}
-
 // ============================================================
-// 🤖 Claude API 直接调用（内置 Key，排名时自动触发）
+// 🤖 Claude API 直接调用（排名时自动触发，双栈执行）
 // ============================================================
 async function runAIAnalysis(scored, apiKey) {
   const prompt = buildAIPrompt();
