@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="购物比价">
 <meta name="theme-color" content="#0f172a">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json?v=9">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=9">
+<link rel="apple-touch-icon" href="icon-192.png?v=9">
 <meta name="mobile-web-app-capable" content="yes">
 <title>购物比价 · AI 深度分析</title>
 <style>
@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v8 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v9 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -346,32 +346,32 @@ let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
-  { id:'tujia', name:'途家民宿', emoji:'🏡',
-    url:(d,ci,co) => `https://www.tujia.com/search?keyword=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'meituan', name:'美团民宿', emoji:'🟡',
-    url:(d,ci,co) => `https://hotel.meituan.com/search?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'qunar', name:'去哪儿', emoji:'🐫',
+  { id:'tujia', name:'途家民宿', emoji:'🏡', pkg:'com.tujia.app',
+    url:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}` },
+  { id:'meituan', name:'美团民宿', emoji:'🟡', pkg:'com.sankuai.meituan',
+    url:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'qunar', name:'去哪儿', emoji:'🐫', pkg:'com.Qunar',
     url:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'zhixing', name:'智行', emoji:'🚅',
+  { id:'zhixing', name:'智行', emoji:'🚅', pkg:'ctrip.android.view',
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'tongcheng', name:'同程旅行', emoji:'✈️',
+  { id:'tongcheng', name:'同程旅行', emoji:'✈️', pkg:null,
     url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷',
+  { id:'fliggy', name:'飞猪', emoji:'🐷', pkg:'com.taobao.trip',
     url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
 const PDD_PFMS = [
-  { id:'pdd', name:'拼多多', emoji:'📦',
+  { id:'pdd', name:'拼多多', emoji:'📦', pkg:'com.xunmeng.pinduoduo',
     url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}` },
-  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥',
+  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥', pkg:'com.xunmeng.pinduoduo',
     url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2` },
-  { id:'taobao', name:'淘宝', emoji:'🛍',
+  { id:'taobao', name:'淘宝', emoji:'🛍', pkg:'com.taobao.taobao',
     url:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
-  { id:'jd', name:'京东', emoji:'🐕',
+  { id:'jd', name:'京东', emoji:'🐕', pkg:'com.jingdong.app.mall',
     url:(d) => `https://search.jd.com/Search?keyword=${d}` },
-  { id:'smzdm', name:'什么值得买', emoji:'💎',
+  { id:'smzdm', name:'什么值得买', emoji:'💎', pkg:null,
     url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
-  { id:'douyin', name:'抖音商城', emoji:'🎵',
+  { id:'douyin', name:'抖音商城', emoji:'🎵', pkg:'com.ss.android.ugc.aweme',
     url:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
 ];
 
@@ -418,7 +418,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v8  |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v9  |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -495,8 +495,8 @@ function openPfm(id) {
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
 
-  // Build URL
-  const url = mode === 'hotel'
+  // Build web URL
+  const webUrl = mode === 'hotel'
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
@@ -506,9 +506,18 @@ function openPfm(id) {
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
 
-  // Direct navigation — try new tab first, fallback to current page
-  const win = window.open(url, '_blank');
-  if (!win) { window.location.href = url; }
+  // Android: use intent:// URL to open native app, with web fallback
+  const isAndroid = /android/i.test(navigator.userAgent);
+  if (isAndroid && p.pkg) {
+    const u = new URL(webUrl);
+    const path = u.pathname + u.search;
+    const intentUrl = `intent://${u.host}${path}#Intent;scheme=https;package=${p.pkg};S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+    window.location.href = intentUrl;
+  } else {
+    // iOS / desktop / no package: just open web URL
+    const win = window.open(webUrl, '_blank');
+    if (!win) { window.location.href = webUrl; }
+  }
 }
 
 function nightsCount() {
@@ -940,7 +949,7 @@ function installPWA() {
     deferredPrompt = null; installBanner.style.display = 'none';
   });
 }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js?v=9').catch(() => {}); }
 
 // 启动
 init();
