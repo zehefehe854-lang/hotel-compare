@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">双栈模式：工具采集 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v8 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -418,8 +418,8 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
-    '  |  ' + new Date().toLocaleDateString('zh-CN') + '  |  双栈: 工具+AI';
+    'v8  |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
     document.getElementById('rankedList').innerHTML = aiResult;
