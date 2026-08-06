@@ -99,9 +99,22 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   padding: 12px 0; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer;
 }
 .manual-section .manual-row { margin-bottom: 12px; }
-.quick-add .icon { font-size: 24px; margin-bottom: 2px; }
-.quick-add .label { font-size: 14px; font-weight: 600; color: var(--accent); }
-.quick-add .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* 截图上传区 */
+.snap-hero {
+  background: linear-gradient(135deg, #1e293b, #1a2332);
+  border: 2px dashed var(--purple); border-radius: var(--r);
+  padding: 20px 16px; margin-bottom: 12px; text-align: center; cursor: pointer;
+  transition: all .15s;
+}
+.snap-hero:active { background: rgba(168,85,247,0.08); transform: scale(.98); }
+.snap-hero .snap-icon { font-size: 36px; margin-bottom: 6px; }
+.snap-hero .snap-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.snap-hero .snap-desc { font-size: 12px; color: var(--sub); }
+.snap-hero .snap-hint { font-size: 10px; color: var(--muted); margin-top: 6px; }
+.snap-hero.processing {
+  border-style: solid; border-color: var(--accent); opacity: .7; pointer-events: none;
+}
 
 /* 手动输入 */
 .manual-row {
@@ -255,7 +268,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v25 · 粘贴链接 → AI 排名</div>
+<div class="subtitle" id="timestamp">v26 · 粘贴链接 + 截图识别 → AI 排名</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -294,6 +307,15 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
     <span>🏡途家</span><span>🟡美团</span><span>🐫去哪儿</span><span>🚅智行</span><span>✈️同程</span><span>🐷飞猪</span>
     <span>📦拼多多</span><span>🛍淘宝</span><span>🐕京东</span><span>🎵抖音</span>
   </div>
+</div>
+
+<!-- 截图上传 -->
+<input type="file" id="snapInput" accept="image/*" capture="environment" style="display:none" onchange="processScreenshot(event)">
+<div class="snap-hero" onclick="document.getElementById('snapInput').click()" id="snapBtn">
+  <div class="snap-icon">📸</div>
+  <div class="snap-title">上传截图自动识别</div>
+  <div class="snap-desc">途家/拼多多详情页截图 → AI 自动提取</div>
+  <div class="snap-hint">支持连续上传 · 提取名称/价格/评价/设施等</div>
 </div>
 
 <!-- 手动输入（折叠） -->
@@ -438,7 +460,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v25 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v26 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -461,7 +483,7 @@ function updateModeUI() {
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
   document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
   document.getElementById('timestamp').textContent =
-    'v25 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v26 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   renderDepthFields();
 }
@@ -607,6 +629,193 @@ function parseListingText(text) {
   name = name.replace(/^https?:\/\/\S+/, '').replace(/^\s+/, '');
 
   return { name, price, platform, link, score };
+}
+
+// ============================================================
+// 📸 截图上传 + Vision 提取
+// ============================================================
+async function processScreenshot(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const apiKey = localStorage.getItem('hl_api_key');
+  if (!apiKey) {
+    const key = prompt('🔑 请输入 Anthropic API Key（用于图像识别）：\nKey 仅保存在本机。', '');
+    if (key && key.trim()) localStorage.setItem('hl_api_key', key.trim());
+    else { toast('需要 API Key 才能使用截图识别', true); event.target.value = ''; return; }
+  }
+
+  const snapBtn = document.getElementById('snapBtn');
+  snapBtn.classList.add('processing');
+  snapBtn.innerHTML = '<div class="snap-icon">⏳</div><div class="snap-title">AI 识别中...</div><div class="snap-desc">正在分析截图内容</div>';
+
+  try {
+    // Resize image if too large (max 1920px wide, compress quality)
+    const imgData = await readImageAsBase64(file, 1920, 0.7);
+
+    const prompt = buildVisionPrompt();
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5-20250901',
+        max_tokens: 1024,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: imgData.type, media_type: imgData.mediaType, data: imgData.data } },
+            { type: 'text', text: prompt },
+          ],
+        }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Parse JSON from response
+    const parsed = parseVisionResponse(text);
+    if (!parsed || !parsed.name) {
+      throw new Error('未能从截图中识别到有效信息，请确认截图包含详情页内容');
+    }
+
+    // Extract depth data
+    const depthVals = {};
+    if (parsed.photos) depthVals.detPhoto = parsed.photos;
+    if (parsed.photoCount) depthVals.detPhotoCount = parsed.photoCount;
+    if (parsed.reviewQuality) depthVals.detReview = parsed.reviewQuality;
+    if (parsed.hostQuality) depthVals.detHost = parsed.hostQuality;
+    if (parsed.cleanliness) depthVals.detClean = parsed.cleanliness;
+    if (parsed.cancelPolicy) depthVals.detCancel = parsed.cancelPolicy;
+    if (parsed.material) depthVals.detMaterial = parsed.material;
+    if (parsed.realPhotos) depthVals.detRealPhotos = parsed.realPhotos;
+    if (parsed.reviews) depthVals.detReviews = parsed.reviews;
+    if (parsed.storeReliability) depthVals.detStore = parsed.storeReliability;
+    if (parsed.specs) depthVals.detSpecs = parsed.specs;
+    if (parsed.services && Array.isArray(parsed.services)) {
+      depthVals.detService = parsed.services.length >= 3 ? 'full' : parsed.services.length >= 1 ? 'basic' : 'none';
+    }
+    if (parsed.notes) depthVals.detBadReview = parsed.notes;
+
+    // Create item
+    items.unshift({
+      id: Date.now(),
+      name: parsed.name.substring(0, 60),
+      price: parsed.price || 0,
+      platform: parsed.platform || (mode === 'pdd' ? '拼多多' : '途家民宿'),
+      link: '',
+      score: parsed.rating || null,
+      time: new Date().toISOString(),
+      mode: mode,
+      checkin: mode === 'hotel' ? checkin : null,
+      checkout: mode === 'hotel' ? checkout : null,
+      nights: mode === 'hotel' ? nightsCount() : null,
+      depth: depthVals,
+    });
+
+    save(); renderItems(); updateButtons();
+    const tags = Object.values(depthVals).filter(v => v).length;
+    toast(`✅ 已识别: ${parsed.name} ¥${parsed.price || '?'} (${tags}项深度数据)`);
+  } catch (e) {
+    toast('❌ ' + e.message, true);
+  } finally {
+    snapBtn.classList.remove('processing');
+    snapBtn.innerHTML = '<div class="snap-icon">📸</div><div class="snap-title">上传截图自动识别</div><div class="snap-desc">途家/拼多多详情页截图 → AI 自动提取</div><div class="snap-hint">支持连续上传 · 提取名称/价格/评价/设施等</div>';
+    event.target.value = '';
+  }
+}
+
+function buildVisionPrompt() {
+  if (mode === 'hotel') {
+    return `你是一个民宿/酒店分析专家。请从这张详情页截图中提取信息，返回纯JSON（不要markdown代码块）：
+
+{
+  "name": "房源名称（中文）",
+  "price": 每晚价格数字,
+  "rating": 评分数字或null,
+  "platform": "途家民宿" 或检测到的其他平台,
+  "photos": "real"或"edited"或"mixed" (real=大量实拍图, edited=仅精修效果图, mixed=混合),
+  "photoCount": 照片数量数字或null,
+  "reviewQuality": "rich"或"mixed"或"poor" (rich=评价有实质内容, mixed=好坏参半, poor=多人反映问题),
+  "hostQuality": "super"或"normal"或"bad" (super=超赞房东/评分很高, normal=正常, bad=服务差投诉多),
+  "cleanliness": "clean"或"ok"或"dirty",
+  "cancelPolicy": "flex"或"moderate"或"strict",
+  "notes": "差评关键词或值得注意的问题（中文逗号分隔，无则null）"
+}`;
+  } else {
+    return `你是一个电商商品分析专家。请从这张商品详情页截图中提取信息，返回纯JSON（不要markdown代码块）：
+
+{
+  "name": "商品名称（中文）",
+  "price": 价格数字（券后/拼单价优先）,
+  "rating": 评分数字或null,
+  "platform": "拼多多" 或检测到的其他平台,
+  "material": "clear"或"vague"或"none" (clear=材质/规格标注清晰, vague=描述模糊, none=完全没标注),
+  "realPhotos": "many"或"some"或"none" (many=有买家秀/实拍图/视频, some=少量实拍, none=仅精修图),
+  "reviews": "real"或"suspicious"或"fake" (real=评价自然多样, suspicious=有刷单嫌疑, fake=明显刷评),
+  "storeReliability": "good"或"normal"或"bad" (good=店铺资质好/评分高/有认证, bad=可疑),
+  "specs": "full"或"partial"或"empty" (full=参数齐全, partial=部分缺失, empty=无参数表),
+  "services": ["退货包运费", "假一赔十", ...] 服务标签数组,
+  "notes": "值得注意的问题（中文逗号分隔，无则null）"
+}`;
+  }
+}
+
+function parseVisionResponse(text) {
+  // Try direct JSON parse first
+  try {
+    text = text.trim();
+    // Strip markdown code blocks if present
+    text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+    return JSON.parse(text);
+  } catch (e) {
+    // Try to extract JSON object from the text
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { return JSON.parse(match[0]); } catch (e2) {}
+    }
+    return null;
+  }
+}
+
+function readImageAsBase64(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function() {
+      // Get image type
+      const isPNG = file.type === 'image/png';
+      const mediaType = isPNG ? 'image/png' : 'image/jpeg';
+
+      // Resize using canvas
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL(isPNG ? 'image/png' : 'image/jpeg', quality);
+        const base64 = dataUrl.split(',')[1];
+        resolve({ data: base64, mediaType: mediaType, type: 'base64' });
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // ============================================================
