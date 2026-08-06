@@ -222,9 +222,8 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   flex: 1; padding: 14px; font-size: 15px; font-weight: 700;
   border: none; border-radius: var(--r); cursor: pointer;
 }
-.bottom .btn-rank { background: var(--accent); color: #000; }
-.bottom .btn-ai { background: var(--purple); color: #fff; flex: 0.4; }
-.bottom .btn-clear { background: var(--input); color: var(--sub); flex: 0.3; }
+.bottom .btn-rank { background: var(--accent); color: #000; flex: 2; }
+.bottom .btn-clear { background: var(--input); color: var(--sub); flex: 0.6; }
 
 /* Toast */
 #toast {
@@ -311,30 +310,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   <div class="empty">👆 先点平台按钮跳转搜索<br>找到后复制链接回来粘贴</div>
 </div>
 
-<!-- 设置面板（API Key 等） -->
-<div class="settings-panel" id="settingsPanel">
-  <div class="settings-inner">
-    <h4>⚙️ 设置</h4>
-    <label style="font-size:11px;color:var(--sub)">Anthropic API Key（双栈排名用）</label>
-    <div class="api-key-row">
-      <input id="apiKeyInput" type="password" placeholder="sk-ant-..." autocomplete="off">
-      <button onclick="saveApiKey()">💾</button>
-    </div>
-    <div style="font-size:10px;color:var(--muted);margin-top:4px">
-      在 <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--blue)">console.anthropic.com</a> 创建 · Key 仅存本地
-    </div>
-    <details style="margin-top:8px;font-size:11px;color:var(--muted)">
-      <summary>📋 无 API Key？手动模式</summary>
-      <div class="btn-row" style="margin-top:6px">
-        <button class="ai-btn copy" onclick="copyAIPrompt()">📋 复制请求</button>
-        <button class="ai-btn open" onclick="openClaude()">🚀 打开Claude</button>
-      </div>
-      <button class="ai-btn import" style="width:100%;margin-top:6px" onclick="importAIResult()">📥 粘贴结果</button>
-    </details>
-  </div>
-</div>
-
-<!-- AI 分析状态（排名时显示） -->
+<!-- AI 分析状态（排名时自动显示） -->
 <div class="ai-loading" id="aiLoading">🤖 Claude 正在深度分析中<span class="dots"></span></div>
 <div class="ai-result" id="aiResult"></div>
 
@@ -347,7 +323,6 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <!-- 底部 -->
 <div class="bottom">
   <button class="btn btn-rank" id="rankBtn" disabled onclick="rank()">📊 双栈排名</button>
-  <button class="btn btn-ai" id="aiBtn" onclick="toggleSettings()">⚙️</button>
   <button class="btn btn-clear" onclick="clearAll()">清空</button>
 </div>
 
@@ -439,9 +414,10 @@ function init() {
   document.getElementById('destInput').value = dest;
   document.getElementById('checkinDate').value = checkin;
   document.getElementById('checkoutDate').value = checkout;
-  // Restore API key
-  const savedKey = localStorage.getItem('hl_api_key');
-  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
+  // 内置 API Key（双栈排名自动使用）
+  if (!localStorage.getItem('hl_api_key')) {
+    localStorage.setItem('hl_api_key', 'sk-1f030cc4eb1d4aa79ebf93158333f180');
+  }
   updateModeUI();
   renderPlatforms();
   renderItems();
@@ -793,14 +769,6 @@ function renderRanked(scored) {
 // ============================================================
 // 🤖 AI 桥接
 // ============================================================
-function toggleSettings() {
-  const panel = document.getElementById('settingsPanel');
-  panel.classList.toggle('show');
-  if (panel.classList.contains('show')) {
-    panel.scrollIntoView({ behavior: 'smooth' });
-  }
-}
-
 function buildAIPrompt() {
   const modeItems = items.filter(i => (i.mode || 'hotel') === mode);
   if (modeItems.length === 0) return null;
@@ -894,17 +862,8 @@ function importAIResult() {
 }
 
 // ============================================================
-// 🤖 Claude API 直接调用
+// 🤖 Claude API 直接调用（内置 Key，排名时自动触发）
 // ============================================================
-function saveApiKey() {
-  const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) { toast('请输入 API Key', true); return; }
-  if (!key.startsWith('sk-ant-')) { toast('Key 格式不对，应以 sk-ant- 开头', true); return; }
-  localStorage.setItem('hl_api_key', key);
-  toast('✅ API Key 已保存');
-}
-
-
 async function runAIAnalysis(scored, apiKey) {
   const prompt = buildAIPrompt();
   if (!prompt) return;
