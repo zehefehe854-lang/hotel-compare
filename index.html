@@ -454,7 +454,8 @@ function setDates() {
     const ci = new Date(checkin);
     const co = new Date(checkout || checkin);
     const nights = Math.max(1, Math.round((co - ci) / 86400000));
-    toast(`✅ ${nights}晚 · ${checkin} → ${checkout || '待定'}`);
+    const suffix = lateNight ? ' 🌙凌晨入住' : '';
+    toast(`✅ ${nights}晚 · ${checkin} → ${checkout || '待定'}${suffix}`);
   }
 }
 
@@ -501,7 +502,8 @@ function openPfm(id) {
 
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
-  const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚` : '';
+  const lateTag = lateNight ? ' 🌙凌晨' : '';
+  const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
 
   // Direct navigation — try new tab first, fallback to current page
@@ -514,6 +516,17 @@ function nightsCount() {
   const ci = new Date(checkin);
   const co = new Date(checkout || checkin);
   return Math.max(1, Math.round((co - ci) / 86400000));
+}
+
+function toggleLateNight() {
+  lateNight = document.getElementById('lateNight').checked;
+  localStorage.setItem('hl_lateNight', lateNight);
+  updateLateNightUI();
+}
+
+function updateLateNightUI() {
+  const label = document.getElementById('lateCheckLabel');
+  label.classList.toggle('active', lateNight);
 }
 
 // ============================================================
