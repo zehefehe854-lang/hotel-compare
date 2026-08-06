@@ -7,9 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="购物比价">
 <meta name="theme-color" content="#0f172a">
-<link rel="manifest" href="manifest.json?v=9">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=9">
-<link rel="apple-touch-icon" href="icon-192.png?v=9">
+<link rel="manifest" href="manifest.json?v=10">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=10">
+<link rel="apple-touch-icon" href="icon-192.png?v=10">
 <meta name="mobile-web-app-capable" content="yes">
 <title>购物比价 · AI 深度分析</title>
 <style>
@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v9 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v10 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -418,7 +418,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v9  |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v10 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -510,9 +510,14 @@ function openPfm(id) {
   const isAndroid = /android/i.test(navigator.userAgent);
   if (isAndroid && p.pkg) {
     const u = new URL(webUrl);
-    const path = u.pathname + u.search;
-    const intentUrl = `intent://${u.host}${path}#Intent;scheme=https;package=${p.pkg};S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
-    window.location.href = intentUrl;
+    const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=${p.pkg};S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+    // Use <a> element click for reliable user-gesture intent handling
+    const a = document.createElement('a');
+    a.href = intentUrl;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 100);
   } else {
     // iOS / desktop / no package: just open web URL
     const win = window.open(webUrl, '_blank');
@@ -949,7 +954,14 @@ function installPWA() {
     deferredPrompt = null; installBanner.style.display = 'none';
   });
 }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js?v=9').catch(() => {}); }
+// 强制清除旧缓存，注册新 Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  }).finally(() => {
+    navigator.serviceWorker.register('sw-v9.js').catch(() => {});
+  });
+}
 
 // 启动
 init();
