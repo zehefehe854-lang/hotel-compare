@@ -72,32 +72,33 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 .late-check input { width: auto; accent-color: var(--accent); }
 .late-check.active { color: var(--accent); font-weight: 700; }
 
-/* 平台按钮 */
-.platforms-label { font-size: 12px; color: var(--sub); margin-bottom: 8px; }
-.platforms {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+/* 粘贴大卡片 — 主入口 */
+.paste-hero {
+  background: linear-gradient(135deg, #1e293b, #1a2332);
+  border: 2px dashed var(--accent); border-radius: var(--r);
+  padding: 24px 16px; margin-bottom: 12px; text-align: center; cursor: pointer;
+  transition: all .15s;
 }
-.pfm-btn {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
-  padding: 12px 6px; text-align: center; cursor: pointer; transition: all .15s;
-  display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative;
+.paste-hero:active { background: rgba(245,158,11,0.08); transform: scale(.98); }
+.paste-icon { font-size: 40px; margin-bottom: 8px; }
+.paste-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+.paste-desc { font-size: 12px; color: var(--sub); margin-bottom: 10px; }
+.paste-platforms {
+  display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+  font-size: 11px; color: var(--muted);
 }
-.pfm-btn:active { transform: scale(.95); }
-.pfm-btn .emoji { font-size: 24px; }
-.pfm-btn .name { font-size: 11px; font-weight: 600; }
-.pfm-btn .hint { font-size: 10px; color: var(--muted); }
-.pfm-btn .dot {
-  position: absolute; top: 6px; right: 6px; width: 8px; height: 8px;
-  border-radius: 50%; background: var(--green); display: none;
+.paste-platforms span {
+  background: var(--input); padding: 2px 8px; border-radius: 10px;
 }
-.pfm-btn.done .dot { display: block; }
 
-/* 粘贴区 */
-.quick-add {
-  background: var(--card); border: 2px dashed var(--accent); border-radius: var(--r);
-  padding: 14px; margin-bottom: 14px; text-align: center; cursor: pointer;
+/* 手动输入折叠区 */
+.manual-section {
+  background: var(--card); border-radius: var(--r); padding: 0 14px; margin-bottom: 12px;
 }
-.quick-add:active { background: rgba(245,158,11,0.05); }
+.manual-section summary {
+  padding: 12px 0; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer;
+}
+.manual-section .manual-row { margin-bottom: 12px; }
 .quick-add .icon { font-size: 24px; margin-bottom: 2px; }
 .quick-add .label { font-size: 14px; font-weight: 600; color: var(--accent); }
 .quick-add .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -254,7 +255,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v24 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v25 · 粘贴链接 → AI 排名</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -284,30 +285,33 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   <label class="late-check" id="lateCheckLabel"><input type="checkbox" id="lateNight" onchange="toggleLateNight()"> 凌晨</label>
 </div>
 
-<!-- 平台入口 -->
-<div class="platforms-label">📡 点击跳转平台（搜索词自动复制到剪贴板）</div>
-<div class="platforms" id="platformBtns"></div>
-
-<!-- 快速粘贴 -->
-<div class="quick-add" onclick="pasteListing()" id="pasteBtn">
-  <div class="icon">📋</div>
-  <div class="label">找到好物？点这里粘贴</div>
-  <div class="sub">从 App 分享 → 复制链接 → 回来粘贴，自动识别</div>
+<!-- 主入口：粘贴链接 -->
+<div class="paste-hero" onclick="pasteListing()" id="pasteBtn">
+  <div class="paste-icon">📋</div>
+  <div class="paste-title">粘贴商品/房源链接</div>
+  <div class="paste-desc">在 App 中复制链接 → 回到这里点击 → 自动识别</div>
+  <div class="paste-platforms">
+    <span>🏡途家</span><span>🟡美团</span><span>🐫去哪儿</span><span>🚅智行</span><span>✈️同程</span><span>🐷飞猪</span>
+    <span>📦拼多多</span><span>🛍淘宝</span><span>🐕京东</span><span>🎵抖音</span>
+  </div>
 </div>
+
+<!-- 手动输入（折叠） -->
+<details class="manual-section" id="manualSection">
+  <summary>✏️ 手动输入（途家等无法复制链接时使用）</summary>
+  <div class="manual-row">
+    <input class="name-inp" id="manName" placeholder="名称">
+    <input class="price-inp" id="manPrice" type="number" placeholder="¥价格">
+    <select class="pfm-sel" id="manPfm"><option value="">平台</option></select>
+    <button class="add-btn" onclick="addManual()">+</button>
+  </div>
+</details>
 
 <!-- 深度分析字段 -->
 <details class="depth-section" id="depthSection">
-  <summary>🔍 深度分析字段（点击展开 — 看详情页信息）</summary>
+  <summary>🔍 深度分析字段（点击展开 — 填完信息后帮助排名更准）</summary>
   <div class="depth-fields" id="depthFields"></div>
 </details>
-
-<!-- 手动输入 -->
-<div class="manual-row">
-  <input class="name-inp" id="manName" placeholder="名称">
-  <input class="price-inp" id="manPrice" type="number" placeholder="¥价格">
-  <select class="pfm-sel" id="manPfm"><option value="">平台</option></select>
-  <button class="add-btn" onclick="addManual()">+</button>
-</div>
 
 <!-- 列表 -->
 <div class="hotel-list" id="itemList">
@@ -360,7 +364,6 @@ let checkin = localStorage.getItem('hl_checkin') || '';
 let checkout = localStorage.getItem('hl_checkout') || '';
 let lateNight = localStorage.getItem('hl_lateNight') === 'true';
 let items = JSON.parse(localStorage.getItem('hl_items') || '[]');
-let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
@@ -432,11 +435,10 @@ function init() {
     }
   }
   updateModeUI();
-  renderPlatforms();
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v24 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v25 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -446,9 +448,7 @@ function init() {
 
 function switchMode(m) {
   mode = m; localStorage.setItem('hl_mode', mode);
-  checked = [];
   updateModeUI();
-  renderPlatforms();
   document.getElementById('manPfm').innerHTML = '<option value="">平台</option>' +
     currentPFMs().map(p => `<option>${p.name}</option>`).join('');
   renderDepthFields();
@@ -461,7 +461,7 @@ function updateModeUI() {
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
   document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
   document.getElementById('timestamp').textContent =
-    'v24 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v25 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音商城' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   renderDepthFields();
 }
@@ -491,81 +491,7 @@ function renderDepthFields() {
 function updateDest() {
   dest = document.getElementById('destInput').value.trim();
   localStorage.setItem('hl_dest', dest);
-  renderPlatforms();
-  toast('✅ 已更新，点击平台开始搜索');
-}
-
-// ============================================================
-// 平台按钮
-// ============================================================
-function renderPlatforms() {
-  document.getElementById('platformBtns').innerHTML = currentPFMs().map(p => `
-    <div class="pfm-btn ${checked.includes(p.id)?'done':''}" onclick="openPfm('${p.id}')">
-      <div class="dot"></div>
-      <div class="emoji">${p.emoji}</div>
-      <div class="name">${p.name}</div>
-      <div class="hint">${checked.includes(p.id)?'✓ 已查':'点击搜索'}</div>
-    </div>
-  `).join('');
-}
-
-function openPfm(id) {
-  const p = currentPFMs().find(x => x.id === id);
-  if (!p) return;
-  const d = dest || (mode === 'pdd' ? '蓝牙耳机' : '北京');
-  const ci = checkin || new Date().toISOString().slice(0,10);
-  const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
-
-  const webUrl = mode === 'hotel'
-    ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
-    : p.url(encodeURIComponent(d));
-
-  var ua = navigator.userAgent || '';
-  var isXiaomi = /MiuiBrowser|XiaoMi/i.test(ua);
-  var isChrome = /Chrome/i.test(ua) && !isXiaomi;
-
-  if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
-  copyText(d);
-  var lateTag = lateNight ? ' 🌙凌晨' : '';
-  var dateHint = mode === 'hotel' ? ' · ' + ci + '→' + co + ' ' + nightsCount() + '晚' + lateTag : '';
-
-  if (p.scheme && (isXiaomi || !isChrome)) {
-    var schemeUrl = p.scheme + '://';
-    var appOpened = false;
-
-    var onBlur = function() { appOpened = true; };
-    window.addEventListener('blur', onBlur, { once: true });
-
-    // KEY FIX: use window.open(_blank) instead of location.href
-    // location.href replaces the PWA page → returning from app = dead tab
-    // window.open creates a new tab that gets intercepted by Android intent system
-    // → PWA page stays alive, user can return to it after app
-    var w = window.open(schemeUrl, '_blank');
-
-    if (!w) {
-      // Popup blocked → fall back to web URL
-      window.removeEventListener('blur', onBlur);
-      window.open(webUrl, '_blank');
-      toast('🔍 ' + p.name + ' (弹窗被拦截) · "' + d + '"' + dateHint);
-      return;
-    }
-
-    setTimeout(function() {
-      window.removeEventListener('blur', onBlur);
-      if (!appOpened) {
-        try { w.close(); } catch(e) {}
-        window.open(webUrl, '_blank');
-        toast('🔍 ' + p.name + ' (未检测到App) · "' + d + '"' + dateHint);
-      } else {
-        toast('📱 ' + p.name + ' App已打开 · "' + d + '"' + dateHint);
-      }
-    }, 3000);
-
-    toast('📱 请求打开' + p.name + ' · "' + d + '"' + dateHint);
-  } else {
-    window.open(webUrl, '_blank');
-    toast('🔍 打开' + p.name + ' · "' + d + '"' + dateHint);
-  }
+  toast('✅ 搜索词已更新');
 }
 
 function nightsCount() {
@@ -624,20 +550,62 @@ async function pasteListing() {
 
 function parseListingText(text) {
   let name = '', price = null, platform = '', link = '', score = null;
-  const pricePatterns = [/[¥￥]\s*(\d+)\s*[\/每]/, /(\d+)\s*[元块]\s*[\/每]/, /[¥￥]\s*(\d+)/, /price[:\s]*(\d+)/i, /(\d+)\s*[元块]/];
-  for (const p of pricePatterns) { const m = text.match(p); if (m) { price = parseInt(m[1]); break; } }
-  const urlMatch = text.match(/https?:\/\/[^\s]+/);
+
+  // Price patterns: ¥299, 299元, 299块, 299, ￥299, price:299
+  const pricePatterns = [
+    /[¥￥]\s*(\d+(?:\.\d{1,2})?)\s*(?:[\/每]|$)/,
+    /(\d+(?:\.\d{1,2})?)\s*[元块]\s*(?:[\/每]|$)/,
+    /[¥￥]\s*(\d+(?:\.\d{1,2})?)/,
+    /price[:\s]*(\d+(?:\.\d{1,2})?)/i,
+    /(\d+(?:\.\d{1,2})?)\s*[元块]/,
+  ];
+  for (const p of pricePatterns) { const m = text.match(p); if (m) { price = parseFloat(m[1]); break; } }
+
+  // URL extraction
+  const urlMatch = text.match(/https?:\/\/[^\s一-鿿]+/);
   if (urlMatch) link = urlMatch[0];
-  for (const p of currentPFMs()) { if (text.includes(p.name) || (link && link.includes(p.id))) { platform = p.name; break; } }
-  if (!platform) {
-    const pfms = mode === 'pdd' ? {yangkeduo:'拼多多',taobao:'淘宝',jd:'京东',smzdm:'什么值得买',jinritemai:'抖音'} : {tujia:'途家',meituan:'美团',qunar:'去哪儿',ctrip:'智行','ly.com':'同程',fliggy:'飞猪'};
-    for (const [k,v] of Object.entries(pfms)) { if (link.includes(k)) { platform = v; break; } }
+
+  // Platform detection from URL domain
+  const platformDomains = {
+    'yangkeduo': '拼多多', 'pinduoduo': '拼多多', 'mobile.yangkeduo': '拼多多',
+    'taobao': '淘宝', 'tmall': '淘宝',
+    'jd.com': '京东', 'm.jd': '京东',
+    'haohuo.jinritemai': '抖音商城', 'jinritemai': '抖音商城',
+    'tujia': '途家民宿',
+    'meituan': '美团民宿', 'i.meituan': '美团民宿',
+    'qunar': '去哪儿', 'touch.qunar': '去哪儿',
+    'ctrip': '智行', 'm.ctrip': '智行',
+    'ly.com': '同程旅行', 'm.ly': '同程旅行',
+    'fliggy': '飞猪旅行', 'market.fliggy': '飞猪旅行',
+  };
+  for (const [domain, label] of Object.entries(platformDomains)) {
+    if (link.includes(domain)) { platform = label; break; }
   }
-  const scoreMatch = text.match(/(\d\.\d)\s*(?:分|评分)/);
-  if (scoreMatch) score = parseFloat(scoreMatch[1]);
-  const lines = text.split(/[\n\r]+/).filter(l => { const t = l.trim(); return t.length > 3 && !t.startsWith('http') && !t.match(/^[¥￥]\d/); });
-  if (lines.length > 0) { name = lines[0].trim().substring(0, 60); name = name.replace(/^(?:分享|来自|复制|链接|查看|打开|【.*?】)\s*/g, ''); }
+
+  // Fallback: match platform name in text
+  if (!platform) {
+    for (const p of currentPFMs()) {
+      if (text.includes(p.name)) { platform = p.name; break; }
+    }
+  }
+
+  // Score: "4.8分" / "4.8评分" / "评分4.8"
+  const scoreMatch = text.match(/(\d\.\d)\s*(?:分|评分)|评分\s*(\d\.\d)/);
+  if (scoreMatch) score = parseFloat(scoreMatch[1] || scoreMatch[2]);
+
+  // Name extraction: first meaningful line
+  const lines = text.split(/[\n\r]+/).filter(l => {
+    const t = l.trim();
+    return t.length > 3 && !t.startsWith('http') && !t.match(/^[¥￥]\d/) && !/^(?:分享|来自|复制|链接|查看|打开)\b/.test(t);
+  });
+  if (lines.length > 0) {
+    name = lines[0].trim().substring(0, 60);
+    name = name.replace(/^(?:分享|来自|复制|链接|查看|打开|【.*?】)\s*/g, '');
+  }
   if (!name) name = text.replace(/\s+/g, ' ').substring(0, 60);
+  // Clean common noise
+  name = name.replace(/^https?:\/\/\S+/, '').replace(/^\s+/, '');
+
   return { name, price, platform, link, score };
 }
 
@@ -675,7 +643,7 @@ function renderItems() {
   const list = document.getElementById('itemList');
   const modeItems = items.filter(i => (i.mode || 'hotel') === mode);
   if (modeItems.length === 0) {
-    list.innerHTML = '<div class="empty">👆 先点平台按钮跳转搜索<br>找到后复制链接回来粘贴</div>';
+    list.innerHTML = '<div class="empty">👆 在 App 中复制商品/房源链接<br>回到这里点击上方卡片粘贴</div>';
     return;
   }
   list.innerHTML = modeItems.map((h, i) => {
@@ -734,9 +702,9 @@ function del(id) { items = items.filter(h => h.id !== id); save(); renderItems()
 
 function clearAll() {
   if (!confirm('清空所有？')) return;
-  items = []; checked = []; aiResult = '';
-  save(); localStorage.setItem('hl_checked', '[]'); localStorage.setItem('hl_ai_result', '');
-  renderItems(); renderPlatforms(); updateButtons();
+  items = []; aiResult = '';
+  save(); localStorage.setItem('hl_ai_result', '');
+  renderItems(); updateButtons();
   document.getElementById('results').classList.remove('show');
   document.getElementById('aiResult').classList.remove('show');
 }
@@ -947,11 +915,6 @@ function updateButtons() {
   const modeItems = items.filter(i => (i.mode || 'hotel') === mode);
   document.getElementById('rankBtn').disabled = modeItems.length < 2;
   document.getElementById('rankBtn').textContent = modeItems.length >= 2 ? `📊 排名 (${modeItems.length})` : '📊 排名';
-}
-function copyText(t) {
-  if (navigator.clipboard) { navigator.clipboard.writeText(t); return; }
-  const ta = document.createElement('textarea'); ta.value = t;
-  document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
 }
 function toast(msg, warn) {
   const el = document.getElementById('toast');
