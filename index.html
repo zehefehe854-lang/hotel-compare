@@ -42,15 +42,31 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 .mode-btn.active { background: var(--accent); color: #000; }
 
 /* 搜索栏 */
-.search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+.search-bar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
 .search-bar input {
-  flex: 1; padding: 14px; font-size: 16px; background: var(--input);
+  flex: 1; min-width: 80px; padding: 12px 10px; font-size: 14px; background: var(--input);
   border: 2px solid var(--border); border-radius: var(--r); color: var(--text); outline: none;
 }
 .search-bar input:focus { border-color: var(--accent); }
+.search-bar input[type="date"] {
+  flex: 0.8; min-width: 100px; color-scheme: dark;
+  padding: 12px 8px; font-size: 13px;
+}
 .search-bar button {
-  padding: 14px 18px; font-size: 15px; font-weight: 700; background: var(--accent);
+  padding: 12px 16px; font-size: 14px; font-weight: 700; background: var(--accent);
   color: #000; border: none; border-radius: var(--r); cursor: pointer;
+}
+.date-row { display: none; gap: 6px; margin-bottom: 8px; align-items: center; }
+.date-row.show { display: flex; }
+.date-row label { font-size: 11px; color: var(--sub); white-space: nowrap; }
+.date-row input[type="date"] {
+  flex: 1; padding: 10px 8px; font-size: 13px; background: var(--input);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;
+  color-scheme: dark;
+}
+.date-row button {
+  padding: 10px 12px; font-size: 12px; background: var(--blue); color: #fff;
+  border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;
 }
 
 /* 平台按钮 */
@@ -221,6 +237,15 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   <button onclick="updateDest()">🔍</button>
 </div>
 
+<!-- 日期选择（酒店模式） -->
+<div class="date-row" id="dateRow">
+  <label>📅 入住</label>
+  <input type="date" id="checkinDate">
+  <label>退房</label>
+  <input type="date" id="checkoutDate">
+  <button onclick="setDates()">确定</button>
+</div>
+
 <!-- 平台入口 -->
 <div class="platforms-label">📡 点击跳转平台（搜索词自动复制到剪贴板）</div>
 <div class="platforms" id="platformBtns"></div>
@@ -285,17 +310,19 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 // ============================================================
 let mode = localStorage.getItem('hl_mode') || 'hotel';
 let dest = localStorage.getItem('hl_dest') || '';
+let checkin = localStorage.getItem('hl_checkin') || '';
+let checkout = localStorage.getItem('hl_checkout') || '';
 let items = JSON.parse(localStorage.getItem('hl_items') || '[]');
 let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
-  { id:'tujia', name:'途家民宿', emoji:'🏡', search:(d) => `https://m.tujia.com/search?searchText=${d}` },
-  { id:'meituan', name:'美团民宿', emoji:'🟡', search:(d) => `https://i.meituan.com/hotel/search?city=${d}` },
-  { id:'qunar', name:'去哪儿', emoji:'🐫', search:(d) => `https://touch.qunar.com/hotel/list?cityName=${d}` },
-  { id:'zhixing', name:'智行', emoji:'🚅', search:(d) => `https://m.ctrip.com/hotel/list?city=${d}` },
-  { id:'tongcheng', name:'同程旅行', emoji:'✈️', search:(d) => `https://m.ly.com/hotel/list?city=${d}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', search:(d) => `https://www.fliggy.com/hotel/list?city=${d}` },
+  { id:'tujia', name:'途家民宿', emoji:'🏡', search:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}` },
+  { id:'meituan', name:'美团民宿', emoji:'🟡', search:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'qunar', name:'去哪儿', emoji:'🐫', search:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
+  { id:'zhixing', name:'智行', emoji:'🚅', search:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'tongcheng', name:'同程旅行', emoji:'✈️', search:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'fliggy', name:'飞猪', emoji:'🐷', search:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
 const PDD_PFMS = [
@@ -337,6 +364,8 @@ function currentDepth() { return mode === 'pdd' ? PDD_DEPTH : HOTEL_DEPTH; }
 // ============================================================
 function init() {
   document.getElementById('destInput').value = dest;
+  document.getElementById('checkinDate').value = checkin;
+  document.getElementById('checkoutDate').value = checkout;
   updateModeUI();
   renderPlatforms();
   renderItems();
@@ -365,7 +394,21 @@ function updateModeUI() {
   document.getElementById('modeHotel').classList.toggle('active', mode === 'hotel');
   document.getElementById('modePDD').classList.toggle('active', mode === 'pdd');
   document.getElementById('destInput').placeholder = mode === 'pdd' ? '商品名（如：蓝牙耳机）' : '目的地（如：大理）';
+  document.getElementById('dateRow').classList.toggle('show', mode === 'hotel');
   renderDepthFields();
+}
+
+function setDates() {
+  checkin = document.getElementById('checkinDate').value;
+  checkout = document.getElementById('checkoutDate').value;
+  localStorage.setItem('hl_checkin', checkin);
+  localStorage.setItem('hl_checkout', checkout);
+  if (checkin) {
+    const ci = new Date(checkin);
+    const co = new Date(checkout || checkin);
+    const nights = Math.max(1, Math.round((co - ci) / 86400000));
+    toast(`✅ ${nights}晚 · ${checkin} → ${checkout || '待定'}`);
+  }
 }
 
 function renderDepthFields() {
@@ -401,11 +444,23 @@ function openPfm(id) {
   const p = currentPFMs().find(x => x.id === id);
   if (!p) return;
   const d = dest || (mode === 'pdd' ? '蓝牙耳机' : '北京');
-  const url = p.search(encodeURIComponent(d));
+  const ci = checkin || new Date().toISOString().slice(0,10);
+  const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const url = mode === 'hotel'
+    ? p.search(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
+    : p.search(encodeURIComponent(d));
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
-  toast(`🔍 打开${p.name} · 搜索词"${d}"已复制`);
+  const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚` : '';
+  toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
   setTimeout(() => { window.open(url, '_blank'); }, 300);
+}
+
+function nightsCount() {
+  if (!checkin) return 1;
+  const ci = new Date(checkin);
+  const co = new Date(checkout || checkin);
+  return Math.max(1, Math.round((co - ci) / 86400000));
 }
 
 // ============================================================
@@ -422,6 +477,9 @@ async function pasteListing() {
         platform: parsed.platform || '', link: parsed.link || text,
         score: parsed.score || null, time: new Date().toISOString(),
         mode: mode,
+        checkin: mode === 'hotel' ? checkin : null,
+        checkout: mode === 'hotel' ? checkout : null,
+        nights: mode === 'hotel' ? nightsCount() : null,
       });
       save(); renderItems(); updateButtons();
       toast(`✅ 已添加: ${parsed.name} ¥${parsed.price}`);
@@ -474,7 +532,13 @@ function addManual() {
     const el = document.getElementById(f.id);
     if (el) depth[f.id] = el.value || null;
   });
-  items.unshift({ id: Date.now(), name, price, platform, link: '', score: null, time: new Date().toISOString(), depth, mode });
+  items.unshift({
+    id: Date.now(), name, price, platform, link: '', score: null,
+    time: new Date().toISOString(), depth, mode,
+    checkin: mode === 'hotel' ? checkin : null,
+    checkout: mode === 'hotel' ? checkout : null,
+    nights: mode === 'hotel' ? nightsCount() : null,
+  });
   ['manName','manPrice','manPfm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   currentDepth().forEach(f => { const el = document.getElementById(f.id); if (el) el.value = ''; });
   save(); renderItems(); updateButtons();
@@ -506,6 +570,7 @@ function renderItems() {
         <span>${new Date(h.time).toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit'})}</span>
       </div>
       <div class="depth-tags">${renderDepthTags(depth)}</div>
+      ${h.checkin && h.checkout ? `<div style="font-size:11px;color:var(--accent);margin-top:3px">📅 ${h.checkin} → ${h.checkout} · ${h.nights||'?'}晚</div>` : ''}
       ${depth.detBadReview ? `<div style="font-size:10px;color:var(--red);margin-top:2px">⚠️ ${depth.detBadReview}</div>` : ''}
       ${h.link ? `<div class="h-link">🔗 ${h.link.substring(0, 50)}...</div>` : ''}
     </div>`;
@@ -646,6 +711,7 @@ function buildAIPrompt() {
   modeItems.forEach((h, i) => {
     prompt += `## ${i + 1}. ${h.name}\n`;
     prompt += `- 价格: ¥${h.price}/${unitName}\n`;
+    if (h.checkin && h.checkout) prompt += `- 入住: ${h.checkin} → 退房: ${h.checkout} · ${h.nights||'?'}晚\n`;
     if (h.platform) prompt += `- 平台: ${h.platform}\n`;
     if (h.score) prompt += `- 平台评分: ${h.score}\n`;
     if (h.link) prompt += `- 链接: ${h.link}\n`;
@@ -677,7 +743,7 @@ function buildAIPrompt() {
   prompt += `请从以下维度逐一分析每个候选，最后给出排名：\n`;
 
   if (mode === 'hotel') {
-    prompt += `1. 价格竞争力（同比最低/性价比）\n`;
+    prompt += `1. 价格竞争力（同比最低/性价比，考虑入住日期是否为旺季/周末）\n`;
     prompt += `2. 照片真实性（实拍vs精修，照片数量信号）\n`;
     prompt += `3. 评价内容质量（是否有实质内容，差评是否具体）\n`;
     prompt += `4. 房东可信度（超赞房东/回复速度）\n`;
