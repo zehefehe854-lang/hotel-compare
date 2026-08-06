@@ -68,6 +68,9 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   padding: 10px 12px; font-size: 12px; background: var(--blue); color: #fff;
   border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;
 }
+.late-check { display: flex; align-items: center; gap: 3px; cursor: pointer; }
+.late-check input { width: auto; accent-color: var(--accent); }
+.late-check.active { color: var(--accent); font-weight: 700; }
 
 /* 平台按钮 */
 .platforms-label { font-size: 12px; color: var(--sub); margin-bottom: 8px; }
@@ -278,6 +281,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   <label>退房</label>
   <input type="date" id="checkoutDate">
   <button onclick="setDates()">确定</button>
+  <label class="late-check" id="lateCheckLabel"><input type="checkbox" id="lateNight" onchange="toggleLateNight()"> 凌晨</label>
 </div>
 
 <!-- 平台入口 -->
@@ -336,50 +340,39 @@ let mode = localStorage.getItem('hl_mode') || 'hotel';
 let dest = localStorage.getItem('hl_dest') || '';
 let checkin = localStorage.getItem('hl_checkin') || '';
 let checkout = localStorage.getItem('hl_checkout') || '';
+let lateNight = localStorage.getItem('hl_lateNight') === 'true';
 let items = JSON.parse(localStorage.getItem('hl_items') || '[]');
 let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
   { id:'tujia', name:'途家民宿', emoji:'🏡',
-    search:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}`,
-    deepLink:(d,ci,co) => `tujia://search?keyword=${d}&checkIn=${ci}&checkOut=${co}` },
+    url:(d,ci,co) => `https://www.tujia.com/search?keyword=${d}&checkInDate=${ci}&checkOutDate=${co}` },
   { id:'meituan', name:'美团民宿', emoji:'🟡',
-    search:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}`,
-    deepLink:(d,ci,co) => `imeituan://www.meituan.com/hotel/search?city=${d}` },
+    url:(d,ci,co) => `https://hotel.meituan.com/search?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'qunar', name:'去哪儿', emoji:'🐫',
-    search:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}`,
-    deepLink:(d,ci,co) => `qunar://search?city=${d}` },
+    url:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
   { id:'zhixing', name:'智行', emoji:'🚅',
-    search:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
-    deepLink:null },
+    url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'tongcheng', name:'同程旅行', emoji:'✈️',
-    search:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
-    deepLink:null },
+    url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'fliggy', name:'飞猪', emoji:'🐷',
-    search:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
-    deepLink:(d,ci,co) => `fliggy://search?keyword=${d}` },
+    url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
 const PDD_PFMS = [
   { id:'pdd', name:'拼多多', emoji:'📦',
-    search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}`,
-    deepLink:(d) => `pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=${d}` },
+    url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}` },
   { id:'pdd_sales', name:'多多销量榜', emoji:'🔥',
-    search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2`,
-    deepLink:(d) => `pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=${d}&order_type=2` },
+    url:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2` },
   { id:'taobao', name:'淘宝', emoji:'🛍',
-    search:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc`,
-    deepLink:(d) => `taobao://s.taobao.com/search?q=${d}` },
+    url:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
   { id:'jd', name:'京东', emoji:'🐕',
-    search:(d) => `https://search.jd.com/Search?keyword=${d}`,
-    deepLink:(d) => `openApp.jdMobile://search.jd.com/Search?keyword=${d}` },
+    url:(d) => `https://search.jd.com/Search?keyword=${d}` },
   { id:'smzdm', name:'什么值得买', emoji:'💎',
-    search:(d) => `https://search.smzdm.com/?c=faxian&s=${d}`,
-    deepLink:(d) => `smzdm://search?c=faxian&s=${d}` },
+    url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
   { id:'douyin', name:'抖音商城', emoji:'🎵',
-    search:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}`,
-    deepLink:(d) => `snssdk1128://jinritemai.com/search?keyword=${d}` },
+    url:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
 ];
 
 function currentPFMs() { return mode === 'pdd' ? PDD_PFMS : HOTEL_PFMS; }
@@ -414,6 +407,8 @@ function init() {
   document.getElementById('destInput').value = dest;
   document.getElementById('checkinDate').value = checkin;
   document.getElementById('checkoutDate').value = checkout;
+  document.getElementById('lateNight').checked = lateNight;
+  updateLateNightUI();
   // 内置 API Key（双栈排名自动使用）
   if (!localStorage.getItem('hl_api_key')) {
     localStorage.setItem('hl_api_key', 'sk-1f030cc4eb1d4aa79ebf93158333f180');
@@ -498,33 +493,20 @@ function openPfm(id) {
   const d = dest || (mode === 'pdd' ? '蓝牙耳机' : '北京');
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
-  const webUrl = mode === 'hotel'
-    ? p.search(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
-    : p.search(encodeURIComponent(d));
+
+  // Build URL
+  const url = mode === 'hotel'
+    ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
+    : p.url(encodeURIComponent(d));
+
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
 
-  // Mobile-first: try deep link → fallback to web URL
-  if (p.deepLink) {
-    const deepUrl = mode === 'hotel'
-      ? p.deepLink(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
-      : p.deepLink(encodeURIComponent(d));
-    // Try opening app via hidden iframe, fall back to web URL after delay
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = deepUrl;
-    document.body.appendChild(iframe);
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-      // If app didn't open, go to web
-      window.location.href = webUrl;
-    }, 800);
-  } else {
-    // No deep link — go directly to website
-    window.location.href = webUrl;
-  }
+  // Direct navigation — try new tab first, fallback to current page
+  const win = window.open(url, '_blank');
+  if (!win) { window.location.href = url; }
 }
 
 function nightsCount() {
