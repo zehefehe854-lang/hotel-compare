@@ -4,7 +4,7 @@
   "description": "途家·美团·去哪儿·智行·同程·飞猪 多平台比价",
   "start_url": "/hotel-compare/",
   "scope": "/hotel-compare/",
-  "id": "hotel-compare-pwa-v17",
+  "id": "hotel-compare-pwa-v18",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",

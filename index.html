@@ -254,7 +254,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 <body>
 
 <h1>🤖 AI 购物比价</h1>
-<div class="subtitle" id="timestamp">v17 · 双栈模式：本地评分 + AI 深度分析</div>
+<div class="subtitle" id="timestamp">v18 · 双栈模式：本地评分 + AI 深度分析</div>
 
 <!-- 安装横幅 -->
 <div id="installBanner">
@@ -336,7 +336,7 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 // ============================================================
 // 版本自检 — 防止浏览器缓存旧版
 // ============================================================
-const EXPECTED_VERSION = 17;
+const EXPECTED_VERSION = 18;
 const loadedVersion = parseInt((document.getElementById('timestamp')?.textContent?.match(/v(\d+)/) || [])[1]) || 0;
 if (loadedVersion && loadedVersion < EXPECTED_VERSION) {
   // Old version cached — force reload with cache-busting
@@ -366,7 +366,7 @@ const HOTEL_PFMS = [
     url:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
   { id:'tongcheng', name:'同程旅行', emoji:'✈️', scheme:null,
     url:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', scheme:null,  // fliggy:// scheme tested non-functional via ADB
+  { id:'fliggy', name:'飞猪旅行', emoji:'🐷', scheme:null,  // fliggy:// scheme tested non-functional via ADB
     url:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
 ];
 
@@ -381,7 +381,7 @@ const PDD_PFMS = [
     url:(d) => `https://search.jd.com/Search?keyword=${d}` },
   { id:'smzdm', name:'什么值得买', emoji:'💎', scheme:null,
     url:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
-  { id:'douyin', name:'抖音商城', emoji:'🎵', scheme:'snssdk1128',
+  { id:'douyin', name:'抖音商城', emoji:'🎵', scheme:'snssdk1128',  // 已经是「抖音商城」
     url:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
 ];
 
@@ -432,7 +432,7 @@ function init() {
   renderItems();
   updateButtons();
   document.getElementById('timestamp').textContent =
-    'v17 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
+    'v18 |  ' + (mode === 'pdd' ? '拼多多 · 淘宝 · 京东 · 抖音' : '途家 · 美团 · 去哪儿 · 智行 · 同程 · 飞猪') +
     '  |  ' + new Date().toLocaleDateString('zh-CN');
   if (aiResult) {
     document.getElementById('results').classList.add('show');
@@ -514,26 +514,30 @@ function openPfm(id) {
     ? p.url(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.url(encodeURIComponent(d));
 
+  // CRITICAL: navigate scheme URL FIRST within user gesture, before any async calls
+  const isAndroid = /android/i.test(navigator.userAgent);
+  if (isAndroid && p.scheme) {
+    const schemeUrl = p.scheme + '://';
+    // Use <a> element click for most reliable user-gesture propagation
+    const a = document.createElement('a');
+    a.href = schemeUrl;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); }, 100);
+    // Fall back to web URL after delay — if app opened, this runs in background
+    setTimeout(() => { window.location.href = webUrl; }, 2500);
+  } else {
+    // iOS / desktop / no scheme: just open web URL
+    window.open(webUrl, '_blank');
+  }
+
+  // Bookkeeping after navigation triggered
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   const lateTag = lateNight ? ' 🌙凌晨' : '';
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚${lateTag}` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
-
-  // Android: try scheme URL → fallback to web after delay
-  // Note: intent:// URLs are blocked by Chrome; direct scheme is the only option
-  const isAndroid = /android/i.test(navigator.userAgent);
-  if (isAndroid && p.scheme) {
-    const schemeUrl = p.scheme + '://';
-    // Navigate to scheme URL to try opening native app
-    window.location.href = schemeUrl;
-    // Always fall back to web URL after delay — if app opened, this runs in background
-    setTimeout(() => { window.location.href = webUrl; }, 2500);
-  } else {
-    // iOS / desktop / no scheme: just open web URL
-    const win = window.open(webUrl, '_blank');
-    if (!win) { window.location.href = webUrl; }
-  }
 }
 
 function nightsCount() {
