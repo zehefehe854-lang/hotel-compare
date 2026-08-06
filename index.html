@@ -160,22 +160,57 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 }
 .r1 { background: var(--accent); color: #000; } .r2 { background: #94a3b8; color: #fff; } .r3 { background: #cd7f32; color: #fff; }
 
-/* AI 桥接区 */
-.ai-bridge {
-  background: linear-gradient(135deg, #1a1f2e, #1e1b4b); border: 2px solid var(--purple);
-  border-radius: var(--r); padding: 14px; margin-top: 16px; display: none;
+/* 设置面板 */
+.settings-panel {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 0; margin-bottom: 14px; max-height: 0; overflow: hidden;
+  transition: max-height .3s, padding .3s;
 }
-.ai-bridge.show { display: block; }
-.ai-bridge h3 { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.ai-bridge .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings-panel.show { max-height: 400px; padding: 14px; }
+.settings-panel h4 { font-size: 14px; margin-bottom: 8px; }
+.settings-inner { }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .ai-btn {
-  flex: 1; min-width: 100px; padding: 12px 16px; font-size: 13px; font-weight: 700;
-  border: none; border-radius: var(--r); cursor: pointer;
+  flex: 1; min-width: 80px; padding: 10px 12px; font-size: 12px; font-weight: 700;
+  border: none; border-radius: 8px; cursor: pointer;
 }
 .ai-btn.copy { background: var(--purple); color: #fff; }
 .ai-btn.open { background: var(--blue); color: #fff; }
 .ai-btn.import { background: var(--green); color: #000; }
-.ai-hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+/* API Key 输入 */
+.api-key-row {
+  display: flex; gap: 6px; margin-bottom: 6px; align-items: center;
+}
+.api-key-row input {
+  flex: 1; padding: 10px; font-size: 12px; background: var(--input);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none;
+  font-family: monospace;
+}
+.api-key-row input:focus { border-color: var(--purple); }
+.api-key-row button {
+  padding: 10px 12px; font-size: 11px; background: var(--input); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+
+/* AI 结果区 */
+.ai-result {
+  background: var(--card); border: 1px solid var(--accent); border-radius: var(--r);
+  padding: 14px; margin-top: 12px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+  max-height: 60vh; overflow-y: auto; display: none;
+}
+.ai-result.show { display: block; }
+.ai-loading {
+  display: none; text-align: center; padding: 16px; color: var(--accent);
+  font-size: 14px; font-weight: 600;
+}
+.ai-loading.show { display: block; }
+.ai-loading .dots::after {
+  content: ''; animation: dots 1.5s steps(4, end) infinite;
+}
+@keyframes dots {
+  0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; }
+}
 
 /* 底部 */
 .bottom {
@@ -276,18 +311,32 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
   <div class="empty">👆 先点平台按钮跳转搜索<br>找到后复制链接回来粘贴</div>
 </div>
 
-<!-- AI 桥接区 -->
-<div class="ai-bridge" id="aiBridge">
-  <h3>🤖 AI 深度分析</h3>
-  <div class="btn-row">
-    <button class="ai-btn copy" onclick="copyAIPrompt()">📋 复制分析请求</button>
-    <button class="ai-btn open" onclick="openClaude()">🚀 打开 Claude</button>
-  </div>
-  <button class="ai-btn import" style="width:100%;margin-top:8px" onclick="importAIResult()">📥 粘贴 AI 分析结果</button>
-  <div class="ai-hint">
-    💡 <b>使用流程：</b>① 点"复制分析请求" → ② 点"打开 Claude" → ③ 在 Claude 输入框长按粘贴 → ④ Claude 分析排名后，复制它的回复 → ⑤ 回来点"粘贴AI分析结果"
+<!-- 设置面板（API Key 等） -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-inner">
+    <h4>⚙️ 设置</h4>
+    <label style="font-size:11px;color:var(--sub)">Anthropic API Key（双栈排名用）</label>
+    <div class="api-key-row">
+      <input id="apiKeyInput" type="password" placeholder="sk-ant-..." autocomplete="off">
+      <button onclick="saveApiKey()">💾</button>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:4px">
+      在 <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--blue)">console.anthropic.com</a> 创建 · Key 仅存本地
+    </div>
+    <details style="margin-top:8px;font-size:11px;color:var(--muted)">
+      <summary>📋 无 API Key？手动模式</summary>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="ai-btn copy" onclick="copyAIPrompt()">📋 复制请求</button>
+        <button class="ai-btn open" onclick="openClaude()">🚀 打开Claude</button>
+      </div>
+      <button class="ai-btn import" style="width:100%;margin-top:6px" onclick="importAIResult()">📥 粘贴结果</button>
+    </details>
   </div>
 </div>
+
+<!-- AI 分析状态（排名时显示） -->
+<div class="ai-loading" id="aiLoading">🤖 Claude 正在深度分析中<span class="dots"></span></div>
+<div class="ai-result" id="aiResult"></div>
 
 <!-- 排名结果 -->
 <div class="results" id="results">
@@ -297,8 +346,8 @@ h1 { font-size: 20px; text-align: center; margin-bottom: 2px; }
 
 <!-- 底部 -->
 <div class="bottom">
-  <button class="btn btn-rank" id="rankBtn" disabled onclick="rank()">📊 排名</button>
-  <button class="btn btn-ai" id="aiBtn" onclick="toggleAI()">🤖 AI</button>
+  <button class="btn btn-rank" id="rankBtn" disabled onclick="rank()">📊 双栈排名</button>
+  <button class="btn btn-ai" id="aiBtn" onclick="toggleSettings()">⚙️</button>
   <button class="btn btn-clear" onclick="clearAll()">清空</button>
 </div>
 
@@ -317,21 +366,45 @@ let checked = JSON.parse(localStorage.getItem('hl_checked') || '[]');
 let aiResult = localStorage.getItem('hl_ai_result') || '';
 
 const HOTEL_PFMS = [
-  { id:'tujia', name:'途家民宿', emoji:'🏡', search:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'meituan', name:'美团民宿', emoji:'🟡', search:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'qunar', name:'去哪儿', emoji:'🐫', search:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}` },
-  { id:'zhixing', name:'智行', emoji:'🚅', search:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'tongcheng', name:'同程旅行', emoji:'✈️', search:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
-  { id:'fliggy', name:'飞猪', emoji:'🐷', search:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}` },
+  { id:'tujia', name:'途家民宿', emoji:'🏡',
+    search:(d,ci,co) => `https://m.tujia.com/search?searchText=${d}&checkInDate=${ci}&checkOutDate=${co}`,
+    deepLink:(d,ci,co) => `tujia://search?keyword=${d}&checkIn=${ci}&checkOut=${co}` },
+  { id:'meituan', name:'美团民宿', emoji:'🟡',
+    search:(d,ci,co) => `https://i.meituan.com/hotel/search?city=${d}&checkin=${ci}&checkout=${co}`,
+    deepLink:(d,ci,co) => `imeituan://www.meituan.com/hotel/search?city=${d}` },
+  { id:'qunar', name:'去哪儿', emoji:'🐫',
+    search:(d,ci,co) => `https://touch.qunar.com/hotel/list?cityName=${d}&checkInDate=${ci}&checkOutDate=${co}`,
+    deepLink:(d,ci,co) => `qunar://search?city=${d}` },
+  { id:'zhixing', name:'智行', emoji:'🚅',
+    search:(d,ci,co) => `https://m.ctrip.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
+    deepLink:null },
+  { id:'tongcheng', name:'同程旅行', emoji:'✈️',
+    search:(d,ci,co) => `https://m.ly.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
+    deepLink:null },
+  { id:'fliggy', name:'飞猪', emoji:'🐷',
+    search:(d,ci,co) => `https://www.fliggy.com/hotel/list?city=${d}&checkin=${ci}&checkout=${co}`,
+    deepLink:(d,ci,co) => `fliggy://search?keyword=${d}` },
 ];
 
 const PDD_PFMS = [
-  { id:'pdd', name:'拼多多', emoji:'📦', search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}` },
-  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥', search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2` },
-  { id:'taobao', name:'淘宝', emoji:'🛍', search:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc` },
-  { id:'jd', name:'京东', emoji:'🐕', search:(d) => `https://search.jd.com/Search?keyword=${d}` },
-  { id:'smzdm', name:'什么值得买', emoji:'💎', search:(d) => `https://search.smzdm.com/?c=faxian&s=${d}` },
-  { id:'douyin', name:'抖音商城', emoji:'🎵', search:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}` },
+  { id:'pdd', name:'拼多多', emoji:'📦',
+    search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}`,
+    deepLink:(d) => `pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=${d}` },
+  { id:'pdd_sales', name:'多多销量榜', emoji:'🔥',
+    search:(d) => `https://mobile.yangkeduo.com/search_result.html?search_key=${d}&order_type=2`,
+    deepLink:(d) => `pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=${d}&order_type=2` },
+  { id:'taobao', name:'淘宝', emoji:'🛍',
+    search:(d) => `https://s.taobao.com/search?q=${d}&sort=sale-desc`,
+    deepLink:(d) => `taobao://s.taobao.com/search?q=${d}` },
+  { id:'jd', name:'京东', emoji:'🐕',
+    search:(d) => `https://search.jd.com/Search?keyword=${d}`,
+    deepLink:(d) => `openApp.jdMobile://search.jd.com/Search?keyword=${d}` },
+  { id:'smzdm', name:'什么值得买', emoji:'💎',
+    search:(d) => `https://search.smzdm.com/?c=faxian&s=${d}`,
+    deepLink:(d) => `smzdm://search?c=faxian&s=${d}` },
+  { id:'douyin', name:'抖音商城', emoji:'🎵',
+    search:(d) => `https://haohuo.jinritemai.com/views/search?keyword=${d}`,
+    deepLink:(d) => `snssdk1128://jinritemai.com/search?keyword=${d}` },
 ];
 
 function currentPFMs() { return mode === 'pdd' ? PDD_PFMS : HOTEL_PFMS; }
@@ -366,6 +439,9 @@ function init() {
   document.getElementById('destInput').value = dest;
   document.getElementById('checkinDate').value = checkin;
   document.getElementById('checkoutDate').value = checkout;
+  // Restore API key
+  const savedKey = localStorage.getItem('hl_api_key');
+  if (savedKey) document.getElementById('apiKeyInput').value = savedKey;
   updateModeUI();
   renderPlatforms();
   renderItems();
@@ -446,14 +522,33 @@ function openPfm(id) {
   const d = dest || (mode === 'pdd' ? '蓝牙耳机' : '北京');
   const ci = checkin || new Date().toISOString().slice(0,10);
   const co = checkout || new Date(Date.now()+86400000).toISOString().slice(0,10);
-  const url = mode === 'hotel'
+  const webUrl = mode === 'hotel'
     ? p.search(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
     : p.search(encodeURIComponent(d));
   if (!checked.includes(id)) { checked.push(id); localStorage.setItem('hl_checked', JSON.stringify(checked)); renderPlatforms(); }
   copyText(d);
   const dateHint = mode === 'hotel' ? ` · ${ci}→${co} ${nightsCount()}晚` : '';
   toast(`🔍 打开${p.name} · "${d}"${dateHint}`);
-  setTimeout(() => { window.open(url, '_blank'); }, 300);
+
+  // Mobile-first: try deep link → fallback to web URL
+  if (p.deepLink) {
+    const deepUrl = mode === 'hotel'
+      ? p.deepLink(encodeURIComponent(d), encodeURIComponent(ci), encodeURIComponent(co))
+      : p.deepLink(encodeURIComponent(d));
+    // Try opening app via hidden iframe, fall back to web URL after delay
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = deepUrl;
+    document.body.appendChild(iframe);
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+      // If app didn't open, go to web
+      window.location.href = webUrl;
+    }, 800);
+  } else {
+    // No deep link — go directly to website
+    window.location.href = webUrl;
+  }
 }
 
 function nightsCount() {
@@ -615,7 +710,7 @@ function clearAll() {
   save(); localStorage.setItem('hl_checked', '[]'); localStorage.setItem('hl_ai_result', '');
   renderItems(); renderPlatforms(); updateButtons();
   document.getElementById('results').classList.remove('show');
-  document.getElementById('aiBridge').classList.remove('show');
+  document.getElementById('aiResult').classList.remove('show');
 }
 
 // ============================================================
@@ -659,6 +754,14 @@ function rank() {
 
   scored.sort((a, b) => b.total - a.total);
   renderRanked(scored);
+
+  // 双栈执行：本地排名完成后，如果设置了 API Key，同时触发 AI 深度分析
+  const apiKey = localStorage.getItem('hl_api_key');
+  if (apiKey) {
+    document.getElementById('aiLoading').classList.add('show');
+    document.getElementById('aiResult').classList.remove('show');
+    runAIAnalysis(scored, apiKey);
+  }
 }
 
 function renderRanked(scored) {
@@ -683,18 +786,18 @@ function renderRanked(scored) {
   }).join('');
   document.getElementById('results').classList.add('show');
   document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-  toast('✅ 排名完成！（点击🤖 AI获取深度分析）');
+  const hasApiKey = !!localStorage.getItem('hl_api_key');
+  toast(hasApiKey ? '✅ 排名完成！AI 深度分析进行中...' : '✅ 排名完成！（设置 API Key 可开启 AI 深度分析）');
 }
 
 // ============================================================
 // 🤖 AI 桥接
 // ============================================================
-function toggleAI() {
-  const bridge = document.getElementById('aiBridge');
-  bridge.classList.toggle('show');
-  if (bridge.classList.contains('show')) {
-    bridge.scrollIntoView({ behavior: 'smooth' });
-    toast('🤖 AI分析模式');
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.classList.toggle('show');
+  if (panel.classList.contains('show')) {
+    panel.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
@@ -788,6 +891,64 @@ function importAIResult() {
   document.getElementById('rankedList').innerHTML = aiResult;
   document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
   toast('✅ AI分析结果已保存');
+}
+
+// ============================================================
+// 🤖 Claude API 直接调用
+// ============================================================
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { toast('请输入 API Key', true); return; }
+  if (!key.startsWith('sk-ant-')) { toast('Key 格式不对，应以 sk-ant- 开头', true); return; }
+  localStorage.setItem('hl_api_key', key);
+  toast('✅ API Key 已保存');
+}
+
+
+async function runAIAnalysis(scored, apiKey) {
+  const prompt = buildAIPrompt();
+  if (!prompt) return;
+
+  const loading = document.getElementById('aiLoading');
+  const resultDiv = document.getElementById('aiResult');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5-20250901',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || JSON.stringify(data);
+
+    aiResult = `<div class="card" style="white-space:pre-wrap;font-size:13px;line-height:1.5"><div style="font-size:11px;color:var(--accent);margin-bottom:6px">🤖 Claude 深度分析</div>${text.replace(/\n/g, '<br>')}</div>`;
+    localStorage.setItem('hl_ai_result', aiResult);
+
+    resultDiv.innerHTML = aiResult;
+    resultDiv.classList.add('show');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    toast('✅ AI 深度分析完成！');
+  } catch (e) {
+    resultDiv.innerHTML = `<div class="card" style="color:var(--red);font-size:13px">❌ AI 分析失败：${e.message}<br><small style="color:var(--muted)">请检查 API Key 是否正确</small></div>`;
+    resultDiv.classList.add('show');
+  } finally {
+    loading.classList.remove('show');
+  }
 }
 
 // ============================================================
